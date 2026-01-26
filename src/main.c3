@@ -53,7 +53,7 @@ fn void init()
 {
 	rl::setTraceLogLevel(rl::TraceLogLevel.WARNING);
     rl::setTargetFPS(120);
-	rl::initWindow(SCREENW, SCREENH, "Fuksivuosi");
+	rl::initWindow(SCREENW, SCREENH, "Working title");
 }
 
 /*
