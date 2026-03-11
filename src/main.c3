@@ -11,21 +11,27 @@ const int CELLSIZE	 = SCREENSIZE / CELLCOUNT;
 const float TICKRATE = 10;
 
 
-enum Direction
+enum Direction : (float base)
 {
-	UP,
-	DOWN,
-	LEFT,
-	RIGHT,
+	UP    = 0,
+	RIGHT = 1,
+	DOWN  = 2,
+	LEFT  = 3,
 }
 
 alias Vec2 = int[<2>];
-alias Body = List {Vec2};
+// alias Body = List {Vec2};
+
+struct BodySegment
+{
+	Vec2      pos;
+	Direction dir;
+}
 
 struct Snake
 {
-	Direction dir;
-	Body	  body;
+	Direction  		  dir;
+	List{BodySegment} body;
 }
 
 struct Food
@@ -48,6 +54,10 @@ struct Assets
 {
 	Texture2D[4] fruits;
 	Texture2D    tile;
+	Texture2D	 head;
+	Texture2D    mid;
+	Texture2D	 tail;
+	Texture2D    turn;
 }
 
 fn int main(String[] args)
@@ -61,9 +71,9 @@ fn int main(String[] args)
 
 	Snake snake;
 	snake.body.init_with_array(mem, {
-		{4, 10},
-		{5, 10},
-		{6, 10},
+		{{4, 10}, LEFT},
+		{{5, 10}, LEFT},
+		{{6, 10}, LEFT},
 	});
 	snake.dir = LEFT;
 
@@ -73,6 +83,11 @@ fn int main(String[] args)
 	assets.fruits[2] = rl::loadTexture("resources/grape.png");
 	assets.fruits[3] = rl::loadTexture("resources/orange.png");
 	assets.tile      = rl::loadTexture("resources/greytile.png");
+
+	assets.head = rl::loadTexture("resources/snake_head.png");
+	assets.mid  = rl::loadTexture("resources/snake_mid.png");
+	assets.tail = rl::loadTexture("resources/snake_tail.png");
+	assets.turn = rl::loadTexture("resources/snake_turn.png");
 
 	while (!rl::windowShouldClose())
 	{
@@ -104,32 +119,33 @@ fn bool update(Snake* snake)
 	if (paused) return true;
 
 	snake.dir = new_dir;
-	Vec2 next_head = snake.body[0];
+	BodySegment next_head = snake.body[0];
+	next_head.dir = new_dir;
 	switch (snake.dir)
 	{
 		case UP:
-			next_head.y -= 1;
-			if (next_head.y < 0) next_head.y = CELLCOUNT-1;
+			next_head.pos.y -= 1;
+			if (next_head.pos.y < 0) next_head.pos.y = CELLCOUNT-1;
 		case DOWN:
-			next_head.y += 1;
-			if (next_head.y == CELLCOUNT) next_head.y = 0;
+			next_head.pos.y += 1;
+			if (next_head.pos.y == CELLCOUNT) next_head.pos.y = 0;
 		case LEFT:
-			next_head.x -= 1;
-			if (next_head.x < 0) next_head.x = CELLCOUNT-1;
+			next_head.pos.x -= 1;
+			if (next_head.pos.x < 0) next_head.pos.x = CELLCOUNT-1;
 		case RIGHT:
-			next_head.x += 1;
-			if (next_head.x == CELLCOUNT) next_head.x = 0;
+			next_head.pos.x += 1;
+			if (next_head.pos.x == CELLCOUNT) next_head.pos.x = 0;
 	}
 
 
 	snake.body.push_front(next_head);
-	if (next_head != food.pos) 
+	if (next_head.pos != food.pos) 
 	{
 		snake.body.pop()!!;
 	} else {
 		// Ollaan osuttu ruokaan
 		score += 10;
-		while (food.pos == next_head)
+		while (food.pos == next_head.pos)
 		{
 			food.pos = {rand(CELLCOUNT-1), rand(CELLCOUNT-1)};
 			food.index = rand(4);
@@ -140,7 +156,7 @@ fn bool update(Snake* snake)
 	foreach (index, body_segment : snake.body)
 	{
 		if (index == 0) continue;
-		if (body_segment == snake.body[0]) // jos osan sijainti on sama kuin pään sijainti
+		if (body_segment.pos == snake.body[0].pos) // jos osan sijainti on sama kuin pään sijainti
 		{
 			return false; // Käärme törmäsi itseensä -> palauta false -> peli loppuu
 		}
@@ -170,18 +186,24 @@ fn void draw(Snake snake, Assets assets)
 	}
 
 	// Piirretään käärme
-	foreach (index, body_segment : snake.body)
+	BodySegment previous;
+	foreach (index, segment : snake.body)
 	{
-		rl::Color color = rl::GREEN;
-		if (index == 0) color = rl::RED;
+		defer previous = segment;
+        Texture2D tex = assets.mid;
 
-		rl::drawRectangle(
-			body_segment.x * CELLSIZE,
-			body_segment.y * CELLSIZE,
-			CELLSIZE,
-			CELLSIZE,
-			color
-		);
+        Rectangle dest = {
+            (float)(segment.pos.x * CELLSIZE + CELLSIZE/2), 
+            (float)(segment.pos.y * CELLSIZE + CELLSIZE/2),
+            (float)CELLSIZE, (float)CELLSIZE
+        };
+
+        float rotation = segment.dir.base * 90;
+
+		Rectangle source = {0, 0, tex.width, tex.height};
+		Vector2   origin = {(float)tex.width/2, (float)tex.height/2};
+
+		rl::drawTexturePro(tex, source, dest, origin, rotation, rl::WHITE);
 	}
 
 	// Tää on iha huono tehdään paremmin
