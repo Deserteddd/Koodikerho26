@@ -2,10 +2,11 @@ module orm;
 import std::io;
 import std::collections::list;
 import std::math::random;
+import std::core::string;
 import raylib5;
 
-const int SCREENSIZE = 600;
-const int CELLCOUNT  = 20;
+const int SCREENSIZE = 900;
+const int CELLCOUNT  = 30;
 const int CELLSIZE	 = SCREENSIZE / CELLCOUNT;
 const float TICKRATE = 10;
 
@@ -34,11 +35,13 @@ struct Food
 }
 
 Food food = {
-	.pos = {10, 10},
+	.pos = {5, 5},
 	.index = 0
 };
 
 float time_since_tick;
+int score = 30;
+bool paused;
 Direction new_dir;
 
 struct Assets
@@ -49,6 +52,10 @@ struct Assets
 
 fn int main(String[] args)
 {
+
+    // The string "sum of 10 and 20 is 30" is stored
+    // into buffer instead of printing on stdout
+
 	rl::initWindow(SCREENSIZE, SCREENSIZE, "ORM");
 	rl::setTargetFPS(240);
 
@@ -73,7 +80,7 @@ fn int main(String[] args)
 		if (!update(&snake)) break;
 		draw(snake, assets);
 	}
-	io::printn("Game over");
+	io::printfn("Game over. You reached a score of: %d", score);
 	return 0;
 }
 
@@ -85,12 +92,16 @@ fn bool update(Snake* snake)
 	if (rl::isKeyDown(rl::KEY_A) && snake.dir != RIGHT) new_dir = LEFT;
 	if (rl::isKeyDown(rl::KEY_D) && snake.dir != LEFT)  new_dir = RIGHT;
 
+
 	if (time_since_tick < 1/TICKRATE)
 	{
 		return true;
 	} else {
 		time_since_tick = 0;
 	}
+
+	if (rl::isKeyDown(rl::KEY_P)) paused = !paused;
+	if (paused) return true;
 
 	snake.dir = new_dir;
 	Vec2 next_head = snake.body[0];
@@ -116,6 +127,8 @@ fn bool update(Snake* snake)
 	{
 		snake.body.pop()!!;
 	} else {
+		// Ollaan osuttu ruokaan
+		score += 10;
 		while (food.pos == next_head)
 		{
 			food.pos = {rand(CELLCOUNT-1), rand(CELLCOUNT-1)};
@@ -138,17 +151,20 @@ fn bool update(Snake* snake)
 fn void draw(Snake snake, Assets assets)
 {
 	rl::beginDrawing();
-	rl::clearBackground(rl::GRAY);
+	rl::clearBackground(rl::WHITE);
 
 	for (int i = 0; i < CELLCOUNT; i += 2)
 	{
 		for (int j = 0; j < CELLCOUNT; j += 2)
 		{
-			rl::drawTexture(
-				assets.tile,
-				i * CELLSIZE, 
-				j * CELLSIZE,
-				rl::WHITE
+			Texture2D tile = assets.tile;
+			rl::drawTexturePro(
+				tile,
+				{0, 0, tile.width, tile.height},
+				{(float)i * CELLSIZE, (float)j * CELLSIZE, 2 * CELLSIZE, 2 * CELLSIZE},
+				{},
+				0,
+				{20, 255, 100, 200}
 			);
 		}
 	}
@@ -168,13 +184,20 @@ fn void draw(Snake snake, Assets assets)
 		);
 	}
 
-	float offset = CELLSIZE * 1/2;
-	rl::drawTextureEx(
-		assets.fruits[food.index],
-		{(float)food.pos.x * CELLSIZE-offset, (float)food.pos.y * CELLSIZE-offset},
-		0, 2,
-		rl::WHITE
+	// Tää on iha huono tehdään paremmin
+	Texture2D fruit = assets.fruits[food.index];
+
+	rl::drawTexturePro(
+		fruit,
+		{8, 8, (float)fruit.width - 16, (float)fruit.height - 16},
+		{(float)food.pos.x * CELLSIZE, (float)food.pos.y * CELLSIZE, CELLSIZE, CELLSIZE},
+		{0, 0},
+		0,
+		rl::WHITE	
 	);
-	rl::drawFPS(10, 10);
+
+	char[10] buffer;
+    String score_string = string::bformat(&buffer, "%s", score);
+	rl::drawText((ZString)score_string, 10, 10, 32, rl::GREEN);
 	rl::endDrawing();
 }
